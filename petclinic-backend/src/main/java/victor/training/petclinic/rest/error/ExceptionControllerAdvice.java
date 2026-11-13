@@ -12,7 +12,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -39,7 +41,7 @@ public class ExceptionControllerAdvice {
         ProblemDetail pd = ProblemDetail.forStatus(status);
         pd.setTitle(title);
         pd.setDetail(detail);
-        pd.setType(java.net.URI.create(request.getRequestURL().toString()));
+        pd.setType(URI.create(request.getRequestURL().toString()));
         pd.setProperty("timestamp", Instant.now());
         return pd;
     }
@@ -68,6 +70,14 @@ public class ExceptionControllerAdvice {
                 "Validation failed for request. See 'errors' for details.", HttpStatus.BAD_REQUEST, request);
         pd.setProperty("errors", errors);
         return ResponseEntity.badRequest().body(pd);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ProblemDetail> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        log.warn("Request refused with {}: {}", status, ex.getReason());
+        ProblemDetail pd = buildProblemDetail(status.getReasonPhrase(), ex.getReason(), status, request);
+        return ResponseEntity.status(status).body(pd);
     }
 
     @ExceptionHandler(Exception.class)

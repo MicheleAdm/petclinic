@@ -16,6 +16,9 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import Spy = jasmine.Spy;
 import {OwnerService} from '../../owners/owner.service';
 import {PetService} from '../../pets/pet.service';
+import {MAT_DATE_FORMATS} from '@angular/material/core';
+import {MY_DATE_FORMATS} from '../visits.module';
+import * as moment from 'moment';
 
 const visitEditOwner = { id: 1, firstName: 'George', lastName: 'Franklin', address: '110 W. Liberty St.', city: 'Madison', telephone: '6085551023', pets: [] };
 
@@ -58,7 +61,8 @@ describe('VisitEditComponent', () => {
         {provide: OwnerService, useClass: OwnerServiceStub},
         {provide: PetService, useClass: PetServiceStub},
         {provide: Router, useClass: RouterStub},
-        {provide: ActivatedRoute, useClass: ActivatedRouteStub}
+        {provide: ActivatedRoute, useClass: ActivatedRouteStub},
+        {provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS}
       ]
     })
       .compileComponents();
@@ -118,5 +122,42 @@ describe('VisitEditComponent', () => {
     component.currentOwner = visitEditOwner as any;
     component.gotoOwnerDetail();
     expect(router.navigate).toHaveBeenCalledWith(['/owners', 1]);
+  });
+
+  describe('visit date range', () => {
+    beforeEach(async () => {
+      const petService = fixture.debugElement.injector.get(PetService);
+      spyOn(petService, 'getPetById').and.returnValue(of(testPet));
+      component.ngOnInit();
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    async function typeVisitDate(date: string) {
+      const input: HTMLInputElement = fixture.nativeElement.querySelector('input[name="date"]');
+      input.value = date;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    const pageText = () => fixture.nativeElement.textContent as string;
+
+    it('refuses a date before the pet\'s birth date', async () => {
+      await typeVisitDate('2010/09/06');
+      expect(pageText()).toContain('Date cannot be before the pet\'s birth date (2010-09-07)');
+    });
+
+    it('refuses a date more than one year from today', async () => {
+      await typeVisitDate(moment().add(1, 'year').add(1, 'day').format('YYYY/MM/DD'));
+      expect(pageText()).toContain('Date cannot be more than one year from today');
+    });
+
+    it('accepts a date inside the range', async () => {
+      await typeVisitDate('2016/09/07');
+      expect(pageText()).not.toContain('Date cannot be');
+    });
   });
 });

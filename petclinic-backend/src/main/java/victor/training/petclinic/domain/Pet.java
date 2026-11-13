@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.support.MutableSortDefinition;
@@ -58,6 +59,21 @@ public class Pet {
     public void addVisit(Visit visit) {
         visits.add(visit);
         visit.setPet(this);
+    }
+
+    /** A visit is dated between the pet's birth and one year from today; empty when the date fits. */
+    public Optional<String> visitDateProblem(LocalDate visitDate, LocalDate today) {
+        if (visitDate == null) {
+            return Optional.empty();
+        }
+        if (birthDate != null && visitDate.isBefore(birthDate)) {
+            return Optional.of("Visit date " + visitDate + " is before the pet's birth date " + birthDate);
+        }
+        LocalDate latest = today.plusYears(1);
+        if (visitDate.isAfter(latest)) {
+            return Optional.of("Visit date " + visitDate + " is after " + latest + ", one year from today");
+        }
+        return Optional.empty();
     }
 
     public Integer getId() {

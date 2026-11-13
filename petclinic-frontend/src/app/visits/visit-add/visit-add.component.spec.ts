@@ -16,6 +16,9 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import Spy = jasmine.Spy;
 import {OwnerService} from '../../owners/owner.service';
 import {Owner} from '../../owners/owner';
+import {MAT_DATE_FORMATS} from '@angular/material/core';
+import {MY_DATE_FORMATS} from '../visits.module';
+import * as moment from 'moment';
 
 class PetServiceStub {
   addPet(pet: Pet): Observable<Pet> {
@@ -58,7 +61,8 @@ describe('VisitAddComponent', () => {
         {provide: VisitService, useClass: VisitServiceStub},
         {provide: OwnerService, useClass: OwnerServiceStub},
         {provide: Router, useClass: RouterStub},
-        {provide: ActivatedRoute, useClass: ActivatedRouteStub}
+        {provide: ActivatedRoute, useClass: ActivatedRouteStub},
+        {provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS}
       ]
     })
       .compileComponents();
@@ -114,5 +118,51 @@ describe('VisitAddComponent', () => {
     component.currentOwner = visitOwner;
     component.gotoOwnerDetail();
     expect(router.navigate).toHaveBeenCalledWith(['/owners', 1]);
+  });
+
+  describe('visit date range', () => {
+    beforeEach(async () => {
+      spyOn(petService, 'getPetById').and.returnValue(of(testPet));
+      component.ngOnInit();
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    async function typeVisitDate(date: string) {
+      const input: HTMLInputElement = fixture.nativeElement.querySelector('input[name="date"]');
+      input.value = date;
+      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('blur'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    const pageText = () => fixture.nativeElement.textContent as string;
+
+    it('accepts the pet\'s birth date', async () => {
+      await typeVisitDate('2010/09/07');
+      expect(pageText()).not.toContain('before the pet\'s birth date');
+    });
+
+    it('refuses a date before the pet\'s birth date', async () => {
+      await typeVisitDate('2010/09/06');
+      expect(pageText()).toContain('Date cannot be before the pet\'s birth date (2010-09-07)');
+    });
+
+    it('refuses the year 9 date of issue #40', async () => {
+      await typeVisitDate('0009/07/20');
+      expect(pageText()).toContain('Date cannot be before the pet\'s birth date');
+    });
+
+    it('refuses a date more than one year from today', async () => {
+      await typeVisitDate(moment().add(1, 'year').add(1, 'day').format('YYYY/MM/DD'));
+      expect(pageText()).toContain('Date cannot be more than one year from today');
+    });
+
+    it('accepts a date exactly one year from today', async () => {
+      await typeVisitDate(moment().add(1, 'year').format('YYYY/MM/DD'));
+      expect(pageText()).not.toContain('more than one year from today');
+    });
   });
 });

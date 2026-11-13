@@ -213,6 +213,57 @@ public class VisitTest {
     }
 
     @Test
+    void create_refusesADatePredatingThePet() throws Exception {
+        VisitDto newVisit = new VisitDto()
+                .setPetId(petId)
+                .setDate(PetTest.BIRTH_DATE.minusDays(1))
+                .setDescription("too early");
+
+        mockMvc.perform(post("/api/visits")
+                .content(mapper.writeValueAsString(newVisit))
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addToOwnersPet_refusesADateMoreThanAYearAhead() throws Exception {
+        int ownerId = petRepository.findById(petId).orElseThrow().getOwner().getId();
+        VisitFieldsDto newVisit = new VisitFieldsDto()
+                .setDate(LocalDate.now().plusYears(1).plusDays(1))
+                .setDescription("too late");
+
+        mockMvc.perform(post("/api/owners/" + ownerId + "/pets/" + petId + "/visits")
+                .content(mapper.writeValueAsString(newVisit))
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addToOwnersPet_acceptsADateExactlyAYearAhead() throws Exception {
+        int ownerId = petRepository.findById(petId).orElseThrow().getOwner().getId();
+        VisitFieldsDto newVisit = new VisitFieldsDto()
+                .setDate(LocalDate.now().plusYears(1))
+                .setDescription("booked well ahead");
+
+        mockMvc.perform(post("/api/owners/" + ownerId + "/pets/" + petId + "/visits")
+                .content(mapper.writeValueAsString(newVisit))
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void update_refusesADatePredatingThePet() throws Exception {
+        VisitFieldsDto update = new VisitFieldsDto()
+                .setDate(LocalDate.of(9, 7, 20))
+                .setDescription("ate the Christmas tinsel");
+
+        mockMvc.perform(put("/api/visits/" + visitId)
+                .content(mapper.writeValueAsString(update))
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void findVisitsByPetId() {
         // Add a second visit for the same pet
         Visit visit2 = new Visit();

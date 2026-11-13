@@ -67,6 +67,9 @@ public class PetClinicMcp {
             throw new IllegalArgumentException("Pet " + petId + " does not belong to owner " + ownerId);
         }
         requireFutureDate(visitDate);
+        pet.visitDateProblem(visitDate, LocalDate.now()).ifPresent(problem -> {
+            throw new IllegalArgumentException(problem);
+        });
         if (LocalDateTime.of(visitDate, visitTime).isBefore(LocalDateTime.now())) {
             throw new IllegalArgumentException("Visit time must be in the future: " + visitDate + " " + visitTime);
         }

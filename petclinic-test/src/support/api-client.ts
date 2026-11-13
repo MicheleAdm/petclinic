@@ -11,6 +11,8 @@ export interface VisitDto {
   ownerLastName?: string;
 }
 
+const idFromLocation = (location: string): number => Number(location.split('/').pop());
+
 export class ApiClient {
   private client: AxiosInstance;
 
@@ -26,6 +28,23 @@ export class ApiClient {
   async fetchVisits(): Promise<VisitDto[]> {
     const response = await this.client.get<VisitDto[]>('/visits');
     return response.data;
+  }
+
+  /** Issue #40's cast: Kevin McCallister and his dog Axel, born on `birthDate`. */
+  async createOwnerWithDog(birthDate: string): Promise<{ownerId: number; petId: number}> {
+    const owner = await this.client.post('/owners', {
+      firstName: 'Kevin', lastName: 'McCallister', address: '671 Lincoln Ave', city: 'Winnetka',
+      telephone: '0712345678',
+    });
+    const ownerId = idFromLocation(owner.headers.location);
+    const pet = await this.client.post(`/owners/${ownerId}/pets`, {
+      name: 'Axel', birthDate, type: {id: 2, name: 'dog'},
+    });
+    return {ownerId, petId: idFromLocation(pet.headers.location)};
+  }
+
+  async visitsOfPet(petId: number): Promise<VisitDto[]> {
+    return (await this.fetchVisits()).filter((v) => v.petId === petId);
   }
 
   static sortedByDate<T extends {date: string}>(rows: T[]): T[] {
